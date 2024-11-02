@@ -1,6 +1,7 @@
 clc, clear, close all
 
 addpath('..\images') %adiciona o diretório anterior no caminho para acessar a classe de funções e as imagens
+addpath('..\')
 
 img = imread("xray01.png"); %lê a imagem que será palicado o negativo
 imcomp_IP_UTFPR = imenhancement_utils.transf_negative(img); %aplica o negativo da biblioteca IP_UTFPR
