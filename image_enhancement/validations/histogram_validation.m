@@ -1,6 +1,6 @@
 clc, clear, close all
 
-addpath('..\') %adiciona o diretório anterior no caminho para acessar a classe de funções e as imagens
+addpath('..\images') %adiciona o diretório anterior no caminho para acessar a classe de funções e as imagens
 
 clc, clear, close all
 

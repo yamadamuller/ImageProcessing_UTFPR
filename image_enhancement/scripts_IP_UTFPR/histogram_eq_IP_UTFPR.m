@@ -1,6 +1,6 @@
 clc, clear, close all
 
-addpath('..\') %adiciona o diretório anterior no caminho para acessar a classe de funções e as imagens
+addpath('..\images') %adiciona o diretório anterior no caminho para acessar a classe de funções e as imagens
 
 %Equalização de histograma
 og_img_histeq = imread("gDSC04422m16.png"); %lê a imagem que será calculada a equalização

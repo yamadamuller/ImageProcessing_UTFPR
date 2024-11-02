@@ -96,11 +96,11 @@ classdef imenhancement_utils
             %img: a matriz da imagem que se deseja equalizar o histograma
             %retorna: imagem com o histograma equalizado
             %-----------------------------------------------------------------
-            hist_img = atv03_utils.img_histograma_iter(img); %histograma da imagem
+            hist_img = imenhancement_utils.im_histogram(img); %histograma da imagem
             hist_img_n = double(hist_img)./(numel(img)); %histograma normalizado
             cdf = cumsum(hist_img_n); %soma cumulativa do histograma normalizado
             cdf = im2uint8(cdf); %converter para uint8
-            eq_img = atv03_utils.aplica_cs_lut(img, cdf); %contrast stretching pela cdf
+            eq_img = imenhancement_utils.contrast_stretching(img, cdf); %contrast stretching pela cdf
         end
 
         function norm = autocontrast(image)
