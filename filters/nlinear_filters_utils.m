@@ -16,7 +16,7 @@ classdef nlinear_filters_utils
             
             if strcmp(borda, 'padding')
                 img = double(img); %converte a imagem para double para operação de filtragem
-                [img_zp, pad] = nlinear_filters_utils.zero_padding(img, zeros(mask_size)); %nova matriz que contém as bordas tratadas com zero padding
+                [img_zp, pad] = nlinear_filters_utils.zero_padding(img, mask_size); %nova matriz que contém as bordas tratadas com zero padding
     
                 %operação do filtro mediana
                 fln_img = zeros(size(img)); %a matriz final deve ter o tamanho da original
@@ -33,20 +33,18 @@ classdef nlinear_filters_utils
                     end
                 end
             
-                fln_img = uint8(fln_img); %converte a matrix para uint8 para facilitar plot
-            
             else
                 error('[nlinear_filters_utils.median_filter2D] Operações sem zero padding ainda não estão disponíveis')
             end
         end
 
-        function [img_zp, pad] = zero_padding(img, mask)
+        function [img_zp, pad] = zero_padding(img, mask_size)
             %%--- Argumentos da função----------------------------------------
             %img: a matriz da imagem que se deseja aplicar o zero padding
-            %mask: a máscara de convolução para definir como será o padding
+            %mask_size: tamanho da máscara de convolução para definir como será o padding
             %retorna: a imagem original com zero padding dada a dimensão da máscara e a constante de padding
             %-----------------------------------------------------------------
-            pad = (size(mask,1)-1)/2; %constante para aumentar o tamanho da matriz original 
+            pad = (mask_size-1)/2; %constante para aumentar o tamanho da matriz original 
             pad_size = size(img) + 2*pad; %novo tamanho para a matriz considerando o zero padding
             img_zp = zeros(pad_size); %matriz com o zero padding na imagem original
             Y_valid = 1+pad:size(img_zp,1)-pad; %índices válidos em Y (linha) que contém a imagem
