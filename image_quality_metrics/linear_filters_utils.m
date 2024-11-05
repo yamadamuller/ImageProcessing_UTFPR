@@ -80,7 +80,7 @@ classdef linear_filters_utils
                         conv_img(i,j) = sum(sub_mtx(:)); %para [i,j] o pixel é a soma dos produtos
                     end
                 end
-            
+
             elseif strcmp(borda, 'valid')
                 img = double(img); %converte a imagem para double para operação de multiplicação
                 [img_zp, pad] = linear_filters_utils.zero_padding(img, size(mask,1)); %nova matriz que contém as bordas tratadas com zero padding
@@ -104,7 +104,7 @@ classdef linear_filters_utils
                 Y_valid = 1+pad:size(conv_img,1)-pad; %linha
                 X_valid = 1+pad:size(conv_img,2)-pad; %coluna
                 conv_img = conv_img(Y_valid, X_valid); %retorna apenas os pixels sem tratamento de borda
-            
+                
             else
                 error('[linear_filters_utils.convolve2D] Operações sem zero padding ainda não estão disponíveis')
             end
