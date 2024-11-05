@@ -32,6 +32,30 @@ classdef nlinear_filters_utils
                         fln_img(i,j) = median(sub_mtx(:)); %para [i,j] o pixel é a mediana da sub-matriz
                     end
                 end
+             
+            elseif strcmp(borda, 'valid')
+                img = double(img); %converte a imagem para double para operação de filtragem
+                [img_zp, pad] = nlinear_filters_utils.zero_padding(img, mask_size); %nova matriz que contém as bordas tratadas com zero padding
+    
+                %operação do filtro mediana
+                fln_img = zeros(size(img)); %a matriz final deve ter o tamanho da original
+                %pixels (linha) da imagem original que serão tratados
+                pxl_i = size(img,1); %linha
+                pxl_j = size(img,2); %coluna
+                for i = 1:pxl_i
+                    for j = 1:pxl_j
+                        %pixels na matriz com zero padding que contemplam a operação atual
+                        sub_idx_i = i:i+2*pad; %linha
+                        sub_idx_j = j:j+2*pad; %coluna
+                        sub_mtx = img_zp(sub_idx_i,sub_idx_j); %sub-matriz com os elementos que contemplam a operação atual
+                        fln_img(i,j) = median(sub_mtx(:)); %para [i,j] o pixel é a mediana da sub-matriz
+                    end
+                end
+
+                %filtra apenas os pixels que foram computados sem tratamento de borda
+                Y_valid = 1+pad:size(conv_img,1)-pad; %linha
+                X_valid = 1+pad:size(conv_img,2)-pad; %coluna
+                fln_img = fln_img(Y_valid, X_valid); %retorna apenas os pixels sem tratamento de borda
             
             else
                 error('[nlinear_filters_utils.median_filter2D] Operações sem zero padding ainda não estão disponíveis')

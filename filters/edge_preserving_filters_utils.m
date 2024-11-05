@@ -80,6 +80,30 @@ classdef edge_preserving_filters_utils
                         conv_img(i,j) = sum(sub_mtx(:)); %para [i,j] o pixel é a soma dos produtos
                     end
                 end
+            
+            elseif strcmp(borda, 'valid')
+                img = double(img); %converte a imagem para double para operação de multiplicação
+                [img_zp, pad] = linear_filters_utils.zero_padding(img, size(mask,1)); %nova matriz que contém as bordas tratadas com zero padding
+                mask = fliplr(flipud(mask)); %"flip" na máscara pq é uma operação de convolução e não correlação
+                %operação da convolução
+                conv_img = zeros(size(img)); %a matriz da convulação deve ter o tamanho da original
+                %pixels da imagem original que serão tratados
+                pxl_i = size(img,1); %linha
+                pxl_j = size(img,2); %coluna
+                for i = 1:pxl_i
+                    for j = 1:pxl_j
+                        %pixels na matriz com zero padding que contemplam a operação atual
+                        sub_idx_i = i:i+2*pad; %linha
+                        sub_idx_j = j:j+2*pad; %coluna
+                        sub_mtx = img_zp(sub_idx_i,sub_idx_j).*mask; %produtos por elemento entre a submatriz e a máscara
+                        conv_img(i,j) = sum(sub_mtx(:)); %para [i,j] o pixel é a soma dos produtos
+                    end
+                end
+
+                %filtra apenas os pixels que foram computados sem tratamento de borda
+                Y_valid = 1+pad:size(conv_img,1)-pad; %linha
+                X_valid = 1+pad:size(conv_img,2)-pad; %coluna
+                conv_img = conv_img(Y_valid, X_valid); %retorna apenas os pixels sem tratamento de borda
 
             else
                 error('[linear_filters_utils.convolve2D] Operações sem zero padding ainda não estão disponíveis')
@@ -101,6 +125,25 @@ classdef edge_preserving_filters_utils
             end
 
             if strcmp(borda, 'padding')
+                img = double(img); %converte a imagem para double para operação de multiplicação
+                [img_zp, pad] = linear_filters_utils.zero_padding(img, mask_size(1)); %nova matriz que contém as bordas tratadas com zero padding
+
+                %operação da variância
+                var_img = zeros(size(img)); %a matriz da convulação deve ter o tamanho da original
+                %pixels da imagem original que serão tratados
+                pxl_i = size(img,1); %linha
+                pxl_j = size(img,2); %coluna
+                for i = 1:pxl_i
+                    for j = 1:pxl_j
+                        %pixels na matriz com zero padding que contemplam a operação atual
+                        sub_idx_i = i:i+2*pad; %linha
+                        sub_idx_j = j:j+2*pad; %coluna
+                        sub_mtx = img_zp(sub_idx_i,sub_idx_j); %sub-matriz com os elementos que contemplam a operação atual
+                        var_img(i,j) = var(sub_mtx(:)); %para [i,j] o pixel é a variância da sub-matriz
+                    end
+                end
+            
+            elseif strcmp(borda, 'valid')
                 img = double(img); %converte a imagem para double para operação de multiplicação
                 [img_zp, pad] = linear_filters_utils.zero_padding(img, mask_size(1)); %nova matriz que contém as bordas tratadas com zero padding
 
@@ -152,7 +195,21 @@ classdef edge_preserving_filters_utils
                 %Equação do MMSE
                 %out = (1-(var_r/Vl)).*in + ((var_r/Vl).*ml);
                 mmse_img = (1 - (noise_var./var_local)).*img + (noise_var./var_local).*avg_local;
+            
+            elseif strcmp(borda, 'valid')
+                img = double(img); %converte a imagem para double para operação de multiplicação
                 
+                %Média local
+                avg_mask = edge_preserving_filters_utils.generate_mask(mask_size, 'box'); %máscara da média local
+                avg_local = edge_preserving_filters_utils.convolve2D(img, avg_mask, borda, 'valid'); %média local de cada pixel da img
+                
+                %Variância local de cada pixel
+                var_local = edge_preserving_filters_utils.variance2D(img, mask_size(1), 'valid'); 
+                
+                %Equação do MMSE
+                %out = (1-(var_r/Vl)).*in + ((var_r/Vl).*ml);
+                mmse_img = (1 - (noise_var./var_local)).*img + (noise_var./var_local).*avg_local;
+            
             else
                 error('[linear_filters_utils.MMSE] Operações sem zero padding ainda não estão disponíveis')
             end

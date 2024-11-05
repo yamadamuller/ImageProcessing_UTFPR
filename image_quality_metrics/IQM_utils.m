@@ -65,7 +65,7 @@ classdef IQM_utils
             %Calcula o SSIM com base na equação geral de [1]
             %A convolução com a máscara só leva em consideração pixels que
             %não necessitam tratamento de bordas
-            
+
             %Luminância
             mean_x = linear_filters_utils.convolve2D(ref_img, janela, 'valid'); %média da referência
             mean_x_sqr = mean_x.*mean_x; %multiplicação ponto a ponto dos elementos
@@ -121,7 +121,6 @@ classdef IQM_utils
             K = [0.01, 0.03]; %constantes padrão
             C1 = double((K(1)*L)^2); %evita instabilidade no cálculo da luminance
             C2 = double((K(2)*L)^2); %evita instabilidade no cálculo do contrast
-            C3 = double(C2/2); %evita instabilidade no cálculo da structure
 
             %Calcula o SSIM com base na equação geral de [1]
             %A convolução com a máscara só leva em consideração pixels que
