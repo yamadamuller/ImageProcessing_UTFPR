@@ -31,6 +31,37 @@ classdef linear_filters_utils
                 mask = mask/sum(mask(:)); %normaliza em relação a soma para garantir que a soma da matriz é igual a 1
                 %fonte: https://www.mathworks.com/help/images/ref/fspecial.html
             
+            elseif strcmp(type, 'gaussian_x')
+                %Acessa o argumento opcional para definir o valor de sigma
+                if ~isempty(varargin)
+                    sigma = varargin{1}; %define sigma como o argumento passado na função
+                else
+                    error('[atv04_utils.mascara_conv] Valor de sigma deve ser passado como argumento!')
+                end
+                
+                %Gaussiana
+                X = -floor(mask_size(1)/2):floor(mask_size(1)/2); %define todos os pontos X compõem o vetor do kernel gaussiano 
+                sigma_sqr = double(sigma^2); %eleva o sigma ao quadrado para facilitar o cálculo do valor da gaussiana
+                mask = (1/(2*pi*sigma_sqr))*exp(-X.^2/(2*sigma_sqr)); %equação da gaussiana 1D
+                mask = mask/sum(mask(:)); %normaliza em relação a soma para garantir que a soma do vetor é igual a 1
+                %fonte: https://www.mathworks.com/help/images/ref/fspecial.html
+
+            elseif strcmp(type, 'gaussian_y')
+                %Acessa o argumento opcional para definir o valor de sigma
+                if ~isempty(varargin)
+                    sigma = varargin{1}; %define sigma como o argumento passado na função
+                else
+                    error('[atv04_utils.mascara_conv] Valor de sigma deve ser passado como argumento!')
+                end
+                
+                %Gaussiana
+                Y = -floor(mask_size(1)/2):floor(mask_size(1)/2); %define todos os pontos Y compõem o vetor do kernel gaussiano 
+                sigma_sqr = double(sigma^2); %eleva o sigma ao quadrado para facilitar o cálculo do valor da gaussiana
+                mask = (1/(2*pi*sigma_sqr))*exp(-Y.^2/(2*sigma_sqr)); %equação da gaussiana 1D
+                mask = mask/sum(mask(:)); %normaliza em relação a soma para garantir que a soma do vetor é igual a 1
+                mask = mask'; %retorna transpoto para a operação g_x*g_y' ser válida
+                %fonte: https://www.mathworks.com/help/images/ref/fspecial.html
+
             elseif strcmp(type, 'laplacian')
                 mask = [0 -1  0;
                        -1  4 -1;
@@ -110,7 +141,7 @@ classdef linear_filters_utils
             end
         end
 
-        function conv_img = separable_convole2D(img, mask_x, mask_y, varargin)
+        function conv_img = separable_convolve2D(img, mask_x, mask_y, varargin)
             %%--- Argumentos da função----------------------------------------
             %img: a matriz da imagem que se deseja aplicar a convolução com a máscara
             %mask_x: a máscara de convolução para o eixo x (vetor 1,N)
