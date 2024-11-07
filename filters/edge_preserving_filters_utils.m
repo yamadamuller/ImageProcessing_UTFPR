@@ -315,7 +315,7 @@ classdef edge_preserving_filters_utils
             end
 
             if strcmp(borda, 'padding')
-                img = double(img); %converte a imagem para double para operação de multiplicação
+                img = (im2double(img)); %converte a imagem para valores entre 0 e 1
                 domain_size = 2*ceil(2*sigma_d)+1; %tamanho do domain kernel com base no desvio padrão
                 %fonte: https://www.mathworks.com/help/images/ref/imgaussfilt.html
                 domain_kernel = edge_preserving_filters_utils.generate_mask([domain_size domain_size], 'gaussian', sigma_d); %domain kernel gaussiano
