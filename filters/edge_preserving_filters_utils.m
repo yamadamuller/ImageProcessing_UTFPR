@@ -383,6 +383,89 @@ classdef edge_preserving_filters_utils
             end
         end
 
+        function pm_img = perona_malik_filter(img, alpha, kappa, varargin)
+            %%--- Argumentos da função----------------------------------------
+            %img: a matriz da imagem que se deseja aplicar o zero padding
+            %alpha: taxa de atualização
+            %kappa: parÂmetro de suavização
+            %varargin: variável opcional que define o número de iterações
+            %retorna: a imagem processada com base no filtro apresentado por perona e malik em [1]
+            %-----------------------------------------------------------------
+            %TODO: OTIMIZAR COM CONVOLVE2D!
+            %[1] - P. Perona, J. Malik,
+            %Scale-Space and Edge Detection Using Anisotropic Diffusion,
+            %IEEE Transactions on Pattern Analysis and Machine Intelligence, Volume 12, Issue 7, 1990.
+            %Acessa o argumento opcional para definir o número de iterações
+            if ~isempty(varargin)
+                n_iter = varargin{1}; %define borda como o argumento passado na função
+            else
+                n_iter = 10; %por defeito o código roda 5 iterações
+                %fonte: https://www.mathworks.com/help/images/ref/imdiffusefilt.html
+            end
+
+            img = double(img); %converte a imagem para double
+            [img_zp, pad] = edge_preserving_filters_utils.zero_padding(img, 3); %nova matriz que contém as bordas tratadas com zero padding
+            %OBS: 3x3 para poder computar as diferenças das vizinhanças 4 para todos os pixels
+            pm_img = img_zp; %condição inicial é a imagem original
+
+            %Perona-Malik filter
+            %I[n] = I[n-1] + alpha*sum{i = 0:3}(g(delta_i)*delta_i)
+            for iter = 1:n_iter
+                %pixels da condição inicial que serão tratados
+                pxl_i = size(img,1); %linha
+                pxl_j = size(img,2); %coluna
+                for i = 1:pxl_i
+                    for j = 1:pxl_j
+                        %pixels na matriz com zero padding que contemplam a operação atual da vizinhança 4
+                        sub_idx_i = i:i+2*pad; %linha
+                        sub_idx_j = j:j+2*pad; %coluna
+                        sub_mtx = pm_img(sub_idx_i,sub_idx_j); %submatriz com tamanho da janela que contempla a vizinhança 4
+                        center_pixel = ones(size(sub_mtx)).*pm_img(i+pad, j+pad); %vetor preenchido com o valor do pixel central
+                        n4_idx_i = [i, i+1, i+1, i+2]; %ìndices da vizinhança 4 em i
+                        n4_idx_j = [j+1, j, j+2, j+1]; %índices da vizinhança 4 em j
+                        n4_idx = sub2ind(size(pm_img), n4_idx_i, n4_idx_j); %índices da vizinhança 4
+                        delta_i = pm_img(n4_idx) - center_pixel(1:4); %diferença entre pixel central e vizinhança 4
+                        g = edge_preserving_filters_utils.conductivity_functions(delta_i, kappa); %calcula o coeficiente de condutividade
+                        grad_mult = g.*delta_i; %multiplicação interna do somatório vizinhança 4
+                        grad = sum(grad_mult(:)); %somatório da vizinhança 4
+                        pm_img(i+pad,j+pad) = pm_img(i+pad,j+pad) + alpha*grad; %atualiza a estimativa
+                    end
+                end
+            end
+            
+            %Retira o zero padding
+            Y_valid = 1+pad:size(pm_img,1)-pad; %linha
+            X_valid = 1+pad:size(pm_img,2)-pad; %coluna
+            pm_img = pm_img(Y_valid, X_valid);
+            
+        end
+
+        function g = conductivity_functions(nabla, kappa, varargin)
+            %%--- Argumentos da função----------------------------------------
+            %nabla: gradiente local
+            %kappa: parÂmetro de suavização
+            %varargin: argumento opcional que define qual equação será usada
+            %retorna: o valor do coeficiente de condutividade em função de nabla e kappa com base nas equações de [1]
+            %-----------------------------------------------------------------
+            %[1] - P. Perona, J. Malik,
+            %Scale-Space and Edge Detection Using Anisotropic Diffusion,
+            %IEEE Transactions on Pattern Analysis and Machine Intelligence, Volume 12, Issue 7, 1990.
+            %Acessa o argumento opcional para definir o número de iterações
+            if ~isempty(varargin)
+                eq_i = varargin{1}; %define borda como o argumento passado na função
+            else
+                eq_i = 1; %por defeito a equação exponencial é utilizada
+            end
+
+            if eq_i == 1
+                g = exp(-(nabla/kappa).^2);
+            elseif eq_i == 2
+                g = 1./(1 + (nabla/kappa).^2);
+            else
+                error('[edge_preserving_fitlers_utils.conductivity_functions] Apenas 1 e 2 são argumentos válidos para a opção de equação!')
+            end
+        end
+
         function [img_zp, pad] = zero_padding(img, mask_size)
             %%--- Argumentos da função----------------------------------------
             %img: a matriz da imagem que se deseja aplicar o zero padding
