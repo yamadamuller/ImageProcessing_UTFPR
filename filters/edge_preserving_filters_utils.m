@@ -21,7 +21,7 @@ classdef edge_preserving_filters_utils
                 if ~isempty(varargin)
                     sigma = varargin{1}; %define sigma como o argumento passado na função
                 else
-                    error('[atv04_utils.mascara_conv] Valor de sigma deve ser passado como argumento!')
+                    error('[edge_preserving_filters_utils.mascara_conv] Valor de sigma deve ser passado como argumento!')
                 end
                 
                 %Gaussiana
@@ -44,7 +44,7 @@ classdef edge_preserving_filters_utils
                         -1  9 -1;
                         -1 -1 -1];
             else
-                error('[linear_filters_utils.generate_mask] Tipo de filtro ' + string(tipo) + ' não aceito para gerar a máscara')
+                error('[edge_preserving_filters_utils.generate_mask] Tipo de filtro ' + string(tipo) + ' não aceito para gerar a máscara')
             end
         end
 
@@ -106,7 +106,7 @@ classdef edge_preserving_filters_utils
                 conv_img = conv_img(Y_valid, X_valid); %retorna apenas os pixels sem tratamento de borda
 
             else
-                error('[linear_filters_utils.convolve2D] Operações sem zero padding ainda não estão disponíveis')
+                error('[edge_preserving_filters_utils.convolve2D] Operações sem zero padding ainda não estão disponíveis')
             end
          end
 
@@ -163,7 +163,7 @@ classdef edge_preserving_filters_utils
                 end
 
             else
-                error('[linear_filters_utils.variance2D] Operações sem zero padding ainda não estão disponíveis')
+                error('[edge_preserving_filters_utils.variance2D] Operações sem zero padding ainda não estão disponíveis')
             end
         end
 
@@ -173,7 +173,7 @@ classdef edge_preserving_filters_utils
             %mask_size: o tamanho da máscara em cada dimensão (média e variância da vizinhança)
             %noise_var: a variância do ruído
             %varargin: variável opcional que define o tratamento das bordas
-            %retorna: a matriz de convolução entre a imagem e a máscara
+            %retorna: a imagem filtrada pelo MMSE
             %-----------------------------------------------------------------
             %Acessa o argumento opcional para definir o tratamento da borda
             if ~isempty(varargin)
@@ -211,7 +211,175 @@ classdef edge_preserving_filters_utils
                 mmse_img = (1 - (noise_var./var_local)).*img + (noise_var./var_local).*avg_local;
             
             else
-                error('[linear_filters_utils.MMSE] Operações sem zero padding ainda não estão disponíveis')
+                error('[edge_preserving_filters_utils.MMSE] Operações sem zero padding ainda não estão disponíveis')
+            end
+        end
+        
+        function bilat_img = bilateral_filter(img, sigma_d, sigma_r, varargin)
+            %%--- Argumentos da função----------------------------------------
+            %img: a matriz da imagem que se deseja aplicar o bilateral filter
+            %sigma_d: desvio padrão para o domain kernel
+            %sigma_r: desvio padrão para o range kernel
+            %varargin: variável opcional que define o tratamento das bordas
+            %retorna: a imagem filtrada pelo bilateral filter
+            %-----------------------------------------------------------------
+            %Acessa o argumento opcional para definir o tratamento da borda
+            if ~isempty(varargin)
+                borda = varargin{1}; %define borda como o argumento passado na função
+            else
+                borda = 'padding'; %por defeito o tratamento é zero padding então
+            end
+
+            if strcmp(borda, 'padding')
+                img = double(img); %converte a imagem para double para operação de multiplicação
+                domain_size = 2*ceil(2*sigma_d)+1; %tamanho do domain kernel com base no desvio padrão
+                %fonte: https://www.mathworks.com/help/images/ref/imgaussfilt.html
+                domain_kernel = edge_preserving_filters_utils.generate_mask([domain_size domain_size], 'gaussian', sigma_d); %domain kernel gaussiano
+                domain_kernel = fliplr(flipud(domain_kernel)); %"flip" na máscara pq é uma operação de convolução e não correlação
+                [img_zp, pad] = edge_preserving_filters_utils.zero_padding(img, size(domain_kernel,1)); %nova matriz que contém as bordas tratadas com zero padding
+                
+                %bilateral filter
+                bilat_img = zeros(size(img)); %a matriz da convulação deve ter o tamanho da original
+                %pixels da imagem original que serão tratados
+                pxl_i = size(img,1); %linha
+                pxl_j = size(img,2); %coluna
+                for i = 1:pxl_i
+                    for j = 1:pxl_j
+                        %pixels na matriz com zero padding que contemplam a operação atual
+                        sub_idx_i = i:i+2*pad; %linha
+                        sub_idx_j = j:j+2*pad; %coluna
+                        sub_mtx = img_zp(sub_idx_i,sub_idx_j); %submatriz com tamanho da janela
+                        center_pixel = ones(size(sub_mtx)).*img_zp(i+pad, j+pad); %vetor preenchido com o valor do pixel central
+                        range_kernel = (1/(2*pi*sigma_r))*exp(-(center_pixel - sub_mtx).^2/(2*sigma_r)); %equação da gaussiana 1D do range kernel
+                        kernel_mult = domain_kernel.*range_kernel; %multiplicação entre os dois kernels
+                        bilat_prod = sub_mtx.*kernel_mult; %multiplicação por elemento entre a submatriz e os dois kernels multiplicados
+                        bilat_mac = sum(bilat_prod(:)); %soma de produtos (MAC -> multiply and accumulate)
+                        bilat_img(i,j) = bilat_mac/sum(kernel_mult(:)); %para [i,j] o pixel é a soma dos produtos ponderada pela soma dos pesos compostos
+                    end
+                end
+            
+            elseif strcmp(borda, 'valid')
+                %INFO: totalmente não-otimizado!
+                img = im2gray(im2double(img)); %converte a imagem para valores entre 0 e 1
+                domain_size = 2*ceil(2*sigma_d)+1; %tamanho do domain kernel com base no desvio padrão
+                %fonte: https://www.mathworks.com/help/images/ref/imgaussfilt.html
+                domain_kernel = edge_preserving_filters_utils.generate_mask([domain_size domain_size], 'gaussian', sigma_d); %domain kernel gaussiano
+                %domain_kernel = fliplr(flipud(domain_kernel)); %"flip" na máscara pq é uma operação de convolução e não correlação
+                [img_zp, pad] = edge_preserving_filters_utils.zero_padding(img, size(domain_kernel,1)); %nova matriz que contém as bordas tratadas com zero padding
+                
+                %bilateral filter
+                bilat_img = zeros(size(img)); %a matriz da convulação deve ter o tamanho da original
+                %pixels da imagem original que serão tratados
+                pxl_i = size(img,1); %linha
+                pxl_j = size(img,2); %coluna
+                for i = 1:pxl_i
+                    for j = 1:pxl_j
+                        %pixels na matriz com zero padding que contemplam a operação atual
+                        sub_idx_i = i:i+2*pad; %linha
+                        sub_idx_j = j:j+2*pad; %coluna
+                        sub_mtx = img_zp(sub_idx_i,sub_idx_j); %submatriz com tamanho da janela
+                        center_pixel = ones(size(sub_mtx)).*img_zp(i+pad, j+pad); %vetor preenchido com o valor do pixel central
+                        range_kernel = (1/(2*pi*sigma_r))*exp(-(center_pixel - sub_mtx).^2/(2*sigma_r^2)); %equação da gaussiana 1D do range kernel
+                        kernel_mult = domain_kernel.*range_kernel; %multiplicação entre os dois kernels
+                        bilat_prod = sub_mtx.*kernel_mult; %multiplicação por elemento entre a submatriz e os dois kernels multiplicados
+                        bilat_mac = sum(sum(bilat_prod)); %soma de produtos (MAC -> multiply and accumulate)
+                        bilat_img(i,j) = bilat_mac/sum(kernel_mult(:)); %para [i,j] o pixel é a soma dos produtos ponderada pela soma dos pesos compostos
+                    end
+                end
+                
+                %filtra apenas os pixels que foram computados sem tratamento de borda 
+                Y_valid = 1+pad:size(bilat_img,1)-pad; %linha
+                X_valid = 1+pad:size(bilat_img,2)-pad; %coluna
+                bilat_edge = zeros(size(bilat_img)); %cria uma matriz de zeros do tamanho da imagem processada
+                bilat_edge(Y_valid, X_valid) = bilat_img(Y_valid, X_valid); %retorna apenas os pixels sem tratamento de borda
+                bilat_img = bilat_edge; %comuta as variáveis para retornar a imagem com 0 nos pixels não tratados
+
+            else
+                error('[edge_preserving_filters_utils.convolve2D] Operações sem zero padding ainda não estão disponíveis')
+            end
+        end
+
+        function range_img = range_filter(img, sigma_d, sigma_r, varargin)
+            %%--- Argumentos da função----------------------------------------
+            %img: a matriz da imagem que se deseja aplicar o bilateral filter
+            %sigma_d: desvio padrão para o domain kernel
+            %sigma_r: desvio padrão para o range kernel
+            %varargin: variável opcional que define o tratamento das bordas
+            %retorna: a imagem filtrada pelo bilateral filter
+            %-----------------------------------------------------------------
+            %Acessa o argumento opcional para definir o tratamento da borda
+            if ~isempty(varargin)
+                borda = varargin{1}; %define borda como o argumento passado na função
+            else
+                borda = 'padding'; %por defeito o tratamento é zero padding então
+            end
+
+            if strcmp(borda, 'padding')
+                img = double(img); %converte a imagem para double para operação de multiplicação
+                domain_size = 2*ceil(2*sigma_d)+1; %tamanho do domain kernel com base no desvio padrão
+                %fonte: https://www.mathworks.com/help/images/ref/imgaussfilt.html
+                domain_kernel = edge_preserving_filters_utils.generate_mask([domain_size domain_size], 'gaussian', sigma_d); %domain kernel gaussiano
+                domain_kernel = fliplr(flipud(domain_kernel)); %"flip" na máscara pq é uma operação de convolução e não correlação
+                [img_zp, pad] = edge_preserving_filters_utils.zero_padding(img, size(domain_kernel,1)); %nova matriz que contém as bordas tratadas com zero padding
+                
+                %bilateral filter
+                range_img = zeros(size(img)); %a matriz da convulação deve ter o tamanho da original
+                %pixels da imagem original que serão tratados
+                pxl_i = size(img,1); %linha
+                pxl_j = size(img,2); %coluna
+                for i = 1:pxl_i
+                    for j = 1:pxl_j
+                        %pixels na matriz com zero padding que contemplam a operação atual
+                        sub_idx_i = i:i+2*pad; %linha
+                        sub_idx_j = j:j+2*pad; %coluna
+                        sub_mtx = img_zp(sub_idx_i,sub_idx_j); %submatriz com tamanho da janela
+                        center_pixel = ones(size(sub_mtx)).*img_zp(i+pad, j+pad); %vetor preenchido com o valor do pixel central
+                        range_kernel = (1/(2*pi*sigma_r))*exp(-(center_pixel - sub_mtx).^2/(2*sigma_r)); %equação da gaussiana 1D do range kernel
+                        range_kernel = range_kernel/sum(range_kernel(:)); %normaliza em relação a soma para garantir que a soma da matriz é igual a 1
+                        %fonte: https://www.mathworks.com/help/images/ref/fspecial.html
+                        range_prod = sub_mtx.*range_kernel; %multiplicação por elemento entre a submatriz e o kernel
+                        range_img(i,j) = sum(range_prod(:)); %para [i,j] o pixel é a soma dos produtos
+                    end
+                end
+            
+            elseif strcmp(borda, 'valid')
+                %INFO: totalmente não-otimizado!
+                img = double(img); %converte a imagem para double para operação de multiplicação
+                domain_size = 2*ceil(2*sigma_d)+1; %tamanho do domain kernel com base no desvio padrão
+                %fonte: https://www.mathworks.com/help/images/ref/imgaussfilt.html
+                domain_kernel = edge_preserving_filters_utils.generate_mask([domain_size domain_size], 'gaussian', sigma_d); %domain kernel gaussiano
+                domain_kernel = fliplr(flipud(domain_kernel)); %"flip" na máscara pq é uma operação de convolução e não correlação
+                [img_zp, pad] = edge_preserving_filters_utils.zero_padding(img, size(domain_kernel,1)); %nova matriz que contém as bordas tratadas com zero padding
+                
+                %bilateral filter
+                range_img = zeros(size(img)); %a matriz da convulação deve ter o tamanho da original
+                %pixels da imagem original que serão tratados
+                pxl_i = size(img,1); %linha
+                pxl_j = size(img,2); %coluna
+                for i = 1:pxl_i
+                    for j = 1:pxl_j
+                        %pixels na matriz com zero padding que contemplam a operação atual
+                        sub_idx_i = i:i+2*pad; %linha
+                        sub_idx_j = j:j+2*pad; %coluna
+                        sub_mtx = img_zp(sub_idx_i,sub_idx_j); %submatriz com tamanho da janela
+                        center_pixel = ones(size(sub_mtx)).*img_zp(i+pad, j+pad); %vetor preenchido com o valor do pixel central
+                        range_kernel = (1/(2*pi*sigma_r))*exp(-(center_pixel - sub_mtx).^2/(2*sigma_r)); %equação da gaussiana 1D do range kernel
+                        range_kernel = range_kernel/sum(range_kernel(:)); %normaliza em relação a soma para garantir que a soma da matriz é igual a 1
+                        %fonte: https://www.mathworks.com/help/images/ref/fspecial.html
+                        range_prod = sub_mtx.*range_kernel; %multiplicação por elemento entre a submatriz e o kernel
+                        range_img(i,j) = sum(range_prod(:)); %para [i,j] o pixel é a soma dos produtos
+                    end
+                end
+                
+                %filtra apenas os pixels que foram computados sem tratamento de borda 
+                Y_valid = 1+pad:size(range_img,1)-pad; %linha
+                X_valid = 1+pad:size(range_img,2)-pad; %coluna
+                range_edge = zeros(size(range_img)); %cria uma matriz de zeros do tamanho da imagem processada
+                range_edge(Y_valid, X_valid) = range_img(Y_valid, X_valid); %retorna apenas os pixels sem tratamento de borda
+                range_img = range_edge; %comuta as variáveis para retornar a imagem com 0 nos pixels não tratados
+
+            else
+                error('[edge_preserving_filters_utils.convolve2D] Operações sem zero padding ainda não estão disponíveis')
             end
         end
 
