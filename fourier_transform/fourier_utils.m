@@ -179,7 +179,7 @@ classdef fourier_utils
             norm = num./den; %aplica o autocontraste I' = [I-min(I)]/[abs(max(I)-min(I))]
         end
 
-        function [delta_i, delta_j, cps] = phase_correlation(img_ref, img_disp)
+        function [delta_i, delta_j, icps] = phase_correlation(img_ref, img_disp)
             %%--- Argumentos da função----------------------------------------
             %img_disp: imagem deslocada em relação a referência
             %img_ref: imagem de referÊncia não deslocada
