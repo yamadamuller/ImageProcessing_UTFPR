@@ -11,7 +11,7 @@ dft_matlab = abs(dft_matlab); %magnitude da fft
 
 %DFT IP_UTFPR
 [dft_IP_r, dft_IP_i] = fourier_utils.im_dft2D(dft_img); %aplica a DFT 2D
-dft_IP = sqrt(dft_IP_r.^2+dft_IP_i.^2); %magnitude da fft
+dft_IP = sqrt(dft_IP_r.^2+dft_IP_i.^2); %magnitude da dft
 
 %Verifica se são iguais
 dft_igual = sum(dft_IP(:)-(dft_matlab(:)));
@@ -26,4 +26,4 @@ imshow(fourier_utils.autocontrast(log(dft_matlab+1e-4)))
 title('FFT 2D Matlab')
 subplot(1,3,3)
 imshow(fourier_utils.autocontrast(log(dft_IP+1e-4)))
-title('FFT 2D IP\_UTFPR')
+title('DFT 2D IP\_UTFPR')
