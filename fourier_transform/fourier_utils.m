@@ -185,6 +185,10 @@ classdef fourier_utils
             %img_ref: imagem de referÊncia não deslocada
             %retorna:deslocamento em pixel no eixo y e x + idft do cross power spectrum
             %-----------------------------------------------------------------
+            
+            %Baseado em: Zitova, B. and Flusse, J. Image registration methods: a survey. 
+            %Image and Vision Computing, v.21, pgs 977-1000, 2003.
+
             %suaviza as duas imagens com uma gaussiana
             [dft_disp_r, dft_disp_i] = fourier_utils.im_dft2D(img_disp, false); %dft sem shift imagem deslocada
             dft_disp = dft_disp_r + 1i*(dft_disp_i); %composição real e imaginária
@@ -209,6 +213,48 @@ classdef fourier_utils
             cross_power = img_ref.*conj(img_disp); %multiplicação ponto-a-ponto (Hadamard)
             norm = abs(img_ref.*conj(img_disp)); %normalização ponto-a-ponto
             cross_power = cross_power./norm; %cross power spectrum 
+        end
+
+        function [idft_r, idft_i] = freq_filt(img, mask)
+            %%--- Argumentos da função----------------------------------------
+            %img_r: parte real da imagem que se deseja filtrar
+            %img_i: parte imaginária da imagem que se deseja filtrar
+            %mask: matriz do filtro com mesmo tamanho da imagem
+            %retorna: imagem filtrada
+            %-----------------------------------------------------------------
+            img = im2double(img); %converte para valores entre 0 e 1
+            [dft_r, dft_i] = atv08_utils.im_dft2D(img); %aplica dft2D com shift
+            filt_r = dft_r.*mask; %multiplicação ponto a ponto (hadamard)
+            filt_i = dft_i.*mask; %multiplicação ponto a ponto (hadamard)
+            [idft_r, idft_i] = atv08_utils.im_idft2D(filt_r, filt_i); %iDFT para imagens filtradas
+        end
+
+        function [idft_r, idft_i, dft_r, dft_i] = notch_filter(dft_r, dft_i, d0, idx_freqs)
+            %%--- Argumentos da função----------------------------------------
+            %dft_r: parte real da imagem que se deseja filtrar
+            %dft_i: parte imaginária da imagem que se deseja filtrar
+            %d0: raio do notch filter
+            %idx_freqs: índices das frequências que se deseja negar
+            %retorna: imagem filtrada e espectro filtrado
+            %-----------------------------------------------------------------
+            dft_r = double(dft_r); %converte para double a parte real
+            dft_i = double(dft_i); %converte para double a parte imaginária
+            [M,N] = size(dft_r); %número de linhas e número de colunas
+            [V,U] = meshgrid(1:M,1:N); %meshgrid com todas linhas e todas colunas
+            for p = 1:length(idx_freqs) %itera para todos os pares de pontos das frequências que serão negadas
+                u0 = idx_freqs(p,1); %coordenada eixo x da frequência
+                v0 = idx_freqs(p,2); %coordenada eixo Y da frequência
+                d1 = sqrt((U-u0).^2 + (V-v0).^2); %distância entre todos os pontos e o ponto da frequência
+                d2 = sqrt((U+u0).^2 + (V+v0).^2); %distância entre todos os pontos e o ponto da frequência
+                notch_d1 = d1>d0; %procura quais pontos de d1 são maiores que d0 (matriz lógica)
+                notch_d2 = d2>d0; %procura quais pontos de d2 são maiores que d0 (matriz lógica)
+                notch = double(notch_d1).*double(notch_d2); %"máscara" para lógica "or" de d1<d0 || d2<d0
+                dft_r = dft_r.*notch; %notch filter na parte real
+                dft_i = dft_i.*notch; %notch filter na parte imaginária
+            end
+
+            %Aplica a iDFT para retornar a imagem filtrada
+            [idft_r, idft_i] = atv08_utils.im_idft2D(dft_r, dft_i);
         end
 
         function mask = generate_mask(mask_size, type, varargin)
